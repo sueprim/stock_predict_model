@@ -10,7 +10,7 @@
 
 ## **주요 코드**
 
-### **1. 데이터 수집 및 전처리
+### **1. 데이터 수집 및 전처리**
 ```python3
 stock_symbol = '035900.KQ'  # JYP 엔터테인먼트 KOSDAQ 코드
 data = yf.download(stock_symbol, start='2000-01-01', end=today)
@@ -23,7 +23,7 @@ data.dropna(inplace=True)  # 결측치 제거
   - 종가(Close)만을 사용하여 분석의 일관성을 유지했습니다.
   - 데이터셋에서 결측값을 제거하여 학습 및 예측의 정확도를 보장했습니다
 ---
-### **2. 데이터 전처리
+### **2. 데이터 전처리**
 ```python3
 scaler = MinMaxScaler(feature_range=(0, 1))
 scaled_data = scaler.fit_transform(data)
@@ -32,7 +32,7 @@ scaled_data = scaler.fit_transform(data)
   -	데이터를 0과 1 사이로 정규화(Min-Max Scaling)하여 LSTM 모델 학습에 적합하도록 변환했습니다.
   -	정규화를 통해 학습 안정성을 높이고 모델 성능을 개선했습니다.
 ---
-### **3. 학습 및 테스트 데이터 분리
+### **3. 학습 및 테스트 데이터 분리**
 ```python3
 train_data_len = int(len(scaled_data) * 0.8)
 train_data = scaled_data[:train_data_len]
@@ -45,7 +45,7 @@ X_test, y_test = create_dataset(test_data, time_step=60)
   -	전체 데이터의 80%를 학습 데이터로, 20%를 테스트 데이터로 분리했습니다.
   -	60일의 데이터(time_step=60)를 기반으로 다음 날의 주가를 예측하도록 데이터셋을 구성했습니다.
 ---
-### **4. 모델 생성
+### **4. 모델 생성**
 ```python3
 model = Sequential([
     LSTM(100, return_sequences=True, input_shape=(X_train.shape[1], 1)),
@@ -61,6 +61,37 @@ model.compile(optimizer='adam', loss='mean_squared_error')
   -	두 번째 LSTM 레이어: 50개의 뉴런과 출력 시퀀스를 제거하는 return_sequences=False 옵션.
   -	Dense 레이어: 마지막 출력을 단일 값으로 변환합니다.
   -	Adam 옵티마이저와 mean_squared_error 손실 함수를 사용하여 학습 효율성을 극대화했습니다.
+---
+### **5. 모델 학습**
+```python3
+model.fit(X_train, y_train, batch_size=32, epochs=200)
+```
+- **설명**
+  -	배치 크기를 32로 설정.
+  -	epoch 횟수를 기존의 50번에서 200번으로 수정해서 학습.
+---
+### **6. 미래 예측(2025-01 ~ 2025-12)**
+```python3
+future_steps = 24  # 24개월 예측
+future_predictions = []
+current_input = scaled_data[-time_step:].reshape(1, time_step, 1)
+
+for _ in range(future_steps):
+    next_pred = model.predict(current_input)
+    future_predictions.append(next_pred[0, 0])
+    current_input[:, :-1, :] = current_input[:, 1:, :]
+    current_input[:, -1, :] = next_pred
+
+# 미래 예측 데이터 역정규화
+future_predictions = scaler.inverse_transform(np.array(future_predictions).reshape(-1, 1))
+
+# 미래 날짜 생성
+future_dates = pd.date_range(start='2024-01-01', periods=future_steps, freq='M')
+```
+- **설명**
+  -	마지막 60일의 데이터를 기반으로 24개월(2024-01~2025-12)의 주가를 예측합니다.
+  -	각 예측값을 기반으로 다음 입력 데이터를 업데이트하여 순차적으로 미래 값을 예측합니다.
+  -	예측된 데이터를 역정규화하여 실제 값으로 변환하고, 미래 날짜 범위를 생성합니다.
 ---
 
 
