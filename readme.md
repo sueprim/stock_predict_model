@@ -1,7 +1,7 @@
 # LSTM 모델을 활용한 주가 예측
 
 ## **프로젝트 개요**
-이 프로젝트는 (제가 jyp 주식을 가지고 있는데 어쩌구 저쩌구~ 스토리 쓰기)**JYP 엔터테인먼트 (KOSDAQ: 035900)** 의 주가를 예측하기 위해 LSTM(Long Short-Term Memory) 모델을 활용합니다. 데이터는 **2000-01-01부터 현재까지**의 기간을 포함하며, Yahoo Finance API를 통해 다운로드되었습니다. 모델은 **테스트 데이터셋(`Predicted Price`)** 과 **미래 주가(`Future Prediction`)** 를 각각 예측합니다. 특히, 미래 예측은 2024-01부터 2025-12까지의 기간을 대상으로 수행됩니다.
+이 프로젝트는 (제가 jyp 주식을 가지고 있는데 어쩌구 저쩌구~ 스토리 쓰기)**JYP 엔터테인먼트 (KOSDAQ: 035900)** 의 주가를 예측하기 위해 LSTM(Long Short-Term Memory) 모델을 활용합니다. 데이터는 **2000-01-01부터 현재까지**의 기간을 포함하며, Yahoo Finance API를 통해 다운로드되었습니다. 모델은 **테스트 데이터셋(`Predicted Price`)** 과 **미래 주가(`Future Prediction`)** 를 각각 예측합니다. 특히, 미래 예측은 2025-01부터 2025-12까지의 기간을 대상으로 수행됩니다.
 
 ---
 
@@ -86,10 +86,10 @@ for _ in range(future_steps):
 future_predictions = scaler.inverse_transform(np.array(future_predictions).reshape(-1, 1))
 
 # 미래 날짜 생성
-future_dates = pd.date_range(start='2024-01-01', periods=future_steps, freq='M')
+future_dates = pd.date_range(start='2025-01-01', periods=future_steps, freq='M')
 ```
 - **설명**
-  -	마지막 60일의 데이터를 기반으로 24개월(2024-01~2025-12)의 주가를 예측합니다.
+  -	마지막 60일의 데이터를 기반으로 24개월(2025-01~2025-12)의 주가를 예측합니다.
   -	각 예측값을 기반으로 다음 입력 데이터를 업데이트하여 순차적으로 미래 값을 예측합니다.
   -	예측된 데이터를 역정규화하여 실제 값으로 변환하고, 미래 날짜 범위를 생성합니다.
 ---
