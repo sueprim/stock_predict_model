@@ -1,12 +1,16 @@
 # LSTM 모델을 활용한 주가 예측
 
 ## **프로젝트 개요**
-이 프로젝트는 (제가 jyp 주식을 가지고 있는데 어쩌구 저쩌구~ 스토리 쓰기)**JYP 엔터테인먼트 (KOSDAQ: 035900)** 의 주가를 예측하기 위해 **LSTM**(Long Short-Term Memory) 모델을 활용합니다. 데이터는 **2000-01-01부터 현재까지**의 기간을 포함하며, **Yahoo Finance API**를 통해 다운로드되었습니다. 모델은 **테스트 데이터셋(`Predicted Price`)** 과 **미래 주가(`Future Prediction`)** 를 각각 예측합니다. 특히, 미래 예측은 2025-01부터 2025-12까지의 기간을 대상으로 수행됩니다.
+이 프로젝트는 (제가 jyp 주식을 가지고 있는데 어쩌구 저쩌구~ 스토리 쓰기)**JYP 엔터테인먼트 (KOSDAQ: 035900)** 의 주가를 예측하기 위해 **LSTM**(Long Short-Term Memory) 모델을 활용합니다. 데이터는 **2000-01-01부터 현재까지**의 기간을 포함하며, **Yahoo Finance API**를 통해 다운로드되었습니다. 모델은 **테스트 데이터셋(`Predicted Price`)** 과 **미래 주가(`Future Prediction`)** 를 각각 예측합니다. 특히, 미래 예측은 2025-01부터 2025-05까지의 기간을 대상으로 수행됩니다.
 
 ---
 
 ## 예측 결과
-![image](https://github.com/user-attachments/assets/85b79d44-93b1-4e41-b5dc-b8af992016ad)
+![image](https://github.com/user-attachments/assets/d9df3c43-7c73-45ea-ad66-7c38328355f5)
+## 실제 차트
+![image](https://github.com/user-attachments/assets/723fc126-ce39-4d2e-aa8d-9627ca09b655)
+실제로 가격을 정확히 예측하지는 못하였지만 하락하는 현상을 잘 예측한 것을 확인할 수 있다.
+
 
 ## **주요 코드**
 
@@ -25,11 +29,11 @@ data.dropna(inplace=True)  # 결측치 제거
 ---
 ### **2. 데이터 전처리**
 ```python3
-scaler = MinMaxScaler(feature_range=(0, 1))
+scaler = StandardScaler()
 scaled_data = scaler.fit_transform(data)
 ```
 - **설명**
-  -	데이터를 0과 1 사이로 정규화(Min-Max Scaling)하여 LSTM 모델 학습에 적합하도록 변환했습니다.
+  -	StandardScaler()를 사용해 평균이 0, 표준편차가 1이 되도록 데이터를 정규화한다.
   -	정규화를 통해 학습 안정성을 높이고 모델 성능을 개선했습니다.
 ---
 ### **3. 학습 및 테스트 데이터 분리**
@@ -48,17 +52,21 @@ X_test, y_test = create_dataset(test_data, time_step=60)
 ### **4. 모델 생성**
 ```python3
 model = Sequential([
-    LSTM(100, return_sequences=True, input_shape=(X_train.shape[1], 1)),
-    LSTM(50, return_sequences=False),
-    Dense(25),
+    LSTM(128, return_sequences=True, input_shape=(X_train.shape[1], 1)),
+    Dropout(0.2),
+    LSTM(64, return_sequences=False),
+    Dropout(0.2),
+    Dense(32, activation='relu'),
     Dense(1)
 ])
+
 model.compile(optimizer='adam', loss='mean_squared_error')
 ```
 - **설명**
   -	LSTM 레이어를 두 개 사용하여 시계열 데이터를 처리하도록 설계했습니다.
-  -	첫 번째 LSTM 레이어: 100개의 뉴런과 출력 시퀀스를 유지하는 return_sequences=True 옵션.
-  -	두 번째 LSTM 레이어: 50개의 뉴런과 출력 시퀀스를 제거하는 return_sequences=False 옵션.
+  -	첫 번째 LSTM 레이어: 128개의 뉴런과 출력 시퀀스를 유지하는 return_sequences=True 옵션.
+  -	두 번째 LSTM 레이어: 64개의 뉴런과 출력 시퀀스를 제거하는 return_sequences=False 옵션.
+  -	Dropout을 사용해 과적합을 방지하기 위해 20%의 노드를 무작위로 드롭.
   -	Dense 레이어: 마지막 출력을 단일 값으로 변환합니다.
   -	Adam 옵티마이저와 mean_squared_error 손실 함수를 사용하여 학습 효율성을 극대화했습니다.
 ---
@@ -70,15 +78,16 @@ model.fit(X_train, y_train, batch_size=32, epochs=200)
   -	배치 크기를 32로 설정.
   -	epoch 횟수를 기존의 50번에서 200번으로 수정해서 학습.
 ---
-### **6. 미래 예측(2025-01 ~ 2025-12)**
+### **6. 미래 예측(2025-01 ~ 2025-05)**
 ```python3
-future_steps = 24  # 24개월 예측
+future_steps = 20  # 약 20주
 future_predictions = []
 current_input = scaled_data[-time_step:].reshape(1, time_step, 1)
 
 for _ in range(future_steps):
     next_pred = model.predict(current_input)
     future_predictions.append(next_pred[0, 0])
+    # 슬라이딩 윈도우 업데이트
     current_input[:, :-1, :] = current_input[:, 1:, :]
     current_input[:, -1, :] = next_pred
 
@@ -89,7 +98,7 @@ future_predictions = scaler.inverse_transform(np.array(future_predictions).resha
 future_dates = pd.date_range(start='2025-01-01', periods=future_steps, freq='M')
 ```
 - **설명**
-  -	마지막 60일의 데이터를 기반으로 24개월(2025-01~2025-12)의 주가를 예측합니다.
+  -	마지막 60일의 데이터를 기반으로 6개월(2025-01~2025-05)의 주가를 예측합니다.
   -	각 예측값을 기반으로 다음 입력 데이터를 업데이트하여 순차적으로 미래 값을 예측합니다.
   -	예측된 데이터를 역정규화하여 실제 값으로 변환하고, 미래 날짜 범위를 생성합니다.
 ---
@@ -156,6 +165,12 @@ future_dates = pd.date_range(start='2025-01-01', periods=future_steps, freq='M')
   * **레이어 추가**
     - 기존의 v2 모델은 LSTM 레이어 두개를 사용해 특징을 추출.
     - 레이어를 추가함으로 모델의 학습 능력을 확장하고, 일반화 성능 향상.
+  * **예측 범위 축소**
+    - 예측 범위가 길어지게 되면 결국 정확한 값이 아닌 예측된 값을 통해 추가적인 예측을 수행.
+    - 이를 방지하기 위해 25-05 까지만 예측 수행
+  * **가독성 향상**
+    - 기존에 월단위로 예측을 수행했기 때문에 대략적인 추세만 확인 가능.
+    - 이를 해결하기 위해 주간 단위로 예측 수행
 
 ---
 
